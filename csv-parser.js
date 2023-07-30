@@ -12,16 +12,53 @@ async function read(fileName) {
     const csv = await fs.readFile(fileName, "utf-8");
     return csv.replace(carriageReturn, "").replace(currency, "").split("\n");
   } catch (err) {
+    console.log("Error:", err);
     throw err;
   }
 }
 
 async function createTable(fileName, tableName) {
-  // Will read CSV file and create table based on data types
+  // Will read CSV file and create table based on its headings
+  // Currently it bases data type on the first row under each column
   // If no table name is specified, will create it based on csv name
   // Names have underscores rather than spaces and are all lowerCase
+
   if (!tableName) tableName = fileName.split(".")[0];
   tableName = tableName.replace(space, "_").toLowerCase();
+
+  try {
+    const csv = await read(fileName);
+
+    const columns = csv[0].split(",").map((column) => {
+      const obj = {
+        column: column.replace(space, "_").toLowerCase(),
+        datatype: null,
+      };
+      return obj;
+    });
+
+    csv[1].split(",").forEach((entry, i) => {
+      const datatype = Number.isFinite(+entry)
+        ? "number"
+        : entry === "TRUE" || entry === "FALSE"
+        ? "boolean"
+        : "varchar(225)";
+      columns[i].datatype = datatype;
+    });
+
+    let SQL = `CREATE TABLE ${tableName} (\n`;
+
+    columns.forEach((column, i) => {
+      SQL += `${column.column} ${column.datatype}`;
+      SQL += i === columns.length - 1 ? `\n)` : `,\n`;
+    });
+
+    console.log(SQL);
+    return SQL;
+  } catch (err) {
+    console.log("Error:", err);
+    throw err;
+  }
 }
 
 async function insertCSV(fileName, tableName) {
@@ -58,5 +95,5 @@ async function insertCSV(fileName, tableName) {
   }
 }
 
-// createTable("wedsheet.csv");
+createTable("wedsheet.csv");
 // insertCSV("wedsheet.csv", "wedsheet")
